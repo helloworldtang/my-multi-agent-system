@@ -1,0 +1,44 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment（含密钥，绝不提交）
+.env
+.env.local
+
+# Logs
+*.log
+
+# RAG 运行时索引（由程序生成，不入库）
+data/faq_index/
+
+# uv lock（博客级作品按约定可选；如需锁版本取消下一行注释）
+# uv.lock
