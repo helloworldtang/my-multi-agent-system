@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "rich>=13.7",
+    "docstring-parser>=0.16",
 ]
 
 [dependency-groups]
