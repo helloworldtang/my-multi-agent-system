@@ -1,0 +1,23 @@
+{
+  "ORD20240001": {
+    "product": "iPhone 15",
+    "status": "已发货",
+    "amount": 5999,
+    "logistics": "顺丰快递 SF1234567890",
+    "created_at": "2026-07-01"
+  },
+  "ORD20240002": {
+    "product": "Nike 运动鞋",
+    "status": "待发货",
+    "amount": 899,
+    "logistics": "暂无物流信息",
+    "created_at": "2026-07-15"
+  },
+  "ORD20240003": {
+    "product": "小米电视",
+    "status": "已完成",
+    "amount": 2599,
+    "logistics": "京东物流 JD9876543210",
+    "created_at": "2026-06-10"
+  }
+}

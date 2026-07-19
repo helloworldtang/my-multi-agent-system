@@ -17,7 +17,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, get_type_hints
+from typing import Any, get_type_hints, overload
 
 from docstring_parser import parse as parse_docstring
 from pydantic import BaseModel, Field, ValidationError, create_model
@@ -65,12 +65,24 @@ def _clean_schema(schema: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
+@overload
+def tool(func: Callable[..., Any]) -> Tool: ...
+
+
+@overload
+def tool(
+    *,
+    name: str | None = None,
+    requires_confirmation: bool = False,
+) -> Callable[[Callable[..., Any]], Tool]: ...
+
+
 def tool(
     func: Callable[..., Any] | None = None,
     *,
     name: str | None = None,
     requires_confirmation: bool = False,
-) -> Any:
+) -> Tool | Callable[[Callable[..., Any]], Tool]:
     """装饰器：把函数声明为 Tool。
 
     参数类型与必填从类型注解推断；参数描述从 Google-style docstring 的 ``Args`` 段解析；
