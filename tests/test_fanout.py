@@ -22,10 +22,31 @@ def test_merge_single_returns_content() -> None:
     assert merge([AgentResult(content="only")]) == "only"
 
 
-def test_merge_multiple_joins() -> None:
+def test_merge_multiple_without_llm_joins() -> None:
     r = merge([AgentResult(content="A"), AgentResult(content="B")])
     assert "A" in r and "B" in r
 
 
 def test_merge_empty_clarifies() -> None:
     assert "无法理解" in merge([]) or "描述" in merge([])
+
+
+def test_smart_merge_single_skips_llm() -> None:
+    # 单 agent：不应消费 LLM 队列
+    llm = FakeLLM(responses=[assistant_response("不应被调用")])
+    assert merge([AgentResult(content="only")], llm=llm) == "only"
+    assert len(llm.calls) == 0
+
+
+def test_smart_merge_multiple_calls_llm_once() -> None:
+    llm = FakeLLM(responses=[assistant_response("整合后的回复")])
+    r = merge([AgentResult(content="A"), AgentResult(content="B")], llm=llm)
+    assert r == "整合后的回复"
+    assert len(llm.calls) == 1
+
+
+def test_smart_merge_passes_all_parts_to_llm() -> None:
+    llm = FakeLLM(responses=[assistant_response("ok")])
+    merge([AgentResult(content="甲"), AgentResult(content="乙")], llm=llm)
+    user_msg = llm.calls[0]["n_messages"]  # type: ignore[index]
+    assert user_msg == 2  # system + 用户（拼接的两段）

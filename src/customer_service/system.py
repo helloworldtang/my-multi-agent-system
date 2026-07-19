@@ -55,7 +55,7 @@ class MultiAgentSystem:
         else:
             agents = [self._agents[name] for name, _ in cls.intents if name in self._agents]
             results = fanout(agents, user_message, history=self.history)
-            reply = merge(results)
+            reply = merge(results, llm=self.llm)
         self.history.append(Message(Role.USER, user_message))
         self.history.append(Message(Role.ASSISTANT, reply))
         return reply

@@ -26,9 +26,11 @@
 
 测试要验证**真行为**（tool_calls 回灌循环、max_steps、重复检测），而不是把 LLM mock 掉只测壳。`FakeLLM` 接受预设 `ChatResponse` 队列，每次 `chat()` 弹一个；队列耗尽即抛错——这等价于一条隐式断言：实际调用次数 == 预期。
 
-## 6. 手写 TF-IDF RAG，留 embedding 接口
+## 6. 手写 TF-IDF RAG，Retriever 协议留 embedding 扩展
 
-零依赖 = README 一键复现；手写 TF-IDF + 余弦（`faq_tools.py`，~40 行）是绝佳博客素材。embedding 路线要另引 provider（DeepSeek 无 embedding 端点），与"纯 DeepSeek + 一键跑通"定位冲突，故作为未来 `Retriever` 扩展点。
+FAQ 场景是少量（~10 条）封闭知识，手写 TF-IDF + 余弦（`core/retriever.py::TfidfRetriever`，~40 行）足够且零依赖——绝佳博客素材。
+
+检索层抽成 `Retriever` 协议（`core/retriever.py`），默认 `TfidfRetriever`。想换语义检索时，实现一个 `EmbeddingRetriever` 即可（需另引 provider：DeepSeek 无 embedding 端点，可用 OpenAI embeddings / 阿里 BGE / 本地 sentence-transformers）。**默认不引入 embedding**——10 条知识用向量是杀鸡牛刀，且会破坏"纯 DeepSeek + 一键复现"定位。
 
 ## 7. pyproject.toml + uv，砍掉 requirements.txt
 
@@ -42,11 +44,14 @@ uv 是 2025-26 Python 圈事实标准。`pyproject.toml` 一个文件管依赖 /
 - tool args JSON 容错解析（`llm.py::_extract` 兜底非法 JSON）
 - 连续重复调用检测（≥3 次相同调用判卡死）
 
-## 诚实声明：merge 的取舍
+## merge：单 agent 零 LLM / 多 agent 一次摘要（v2）
 
-`merge` 用**简单拼接**（不再调 LLM）。好处是省一次调用、低成本；代价是多意图时回复可能出现**信息重叠**（见 demo 第 3 问，order 与 faq 各答一遍退换货）。
+`merge` 区分两种情况：
 
-这是"成本 vs 质量"的明确取舍——本项目选低成本。更智能的"二次摘要 merge"是未来选项，会重新引入一次 LLM 调用，需在文档讲清代价。
+- **单 agent 或无结果**：直接返回，**零 LLM 调用**——修正了老项目 `AggregatorAgent` 对单个结果也调一次 LLM 的负价值设计。
+- **多 agent 且提供 ``llm``**：调一次 LLM 把多条回复整合成一条连贯、去重的最终回复。
+
+这个分档修正了 v1 纯拼接时"多意图信息重叠"的问题（demo 第 3 问曾出现退换货政策被答两遍），同时把额外 LLM 成本**限制在"真有多 agent"的少数场景**——大多数单意图请求仍零额外调用。
 
 ## 诚实声明：不为 Multi-Agent 硬造并行
 
