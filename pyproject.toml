@@ -30,7 +30,8 @@ dev = [
     "mypy>=1.10",
 ]
 
-# Phase 6 启用：[project.scripts] customer-service = "customer_service.cli:main"
+[project.scripts]
+customer-service = "customer_service.cli:main"
 
 [build-system]
 requires = ["hatchling"]
