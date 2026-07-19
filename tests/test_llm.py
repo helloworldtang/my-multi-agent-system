@@ -127,3 +127,28 @@ def test_chat_writes_jsonl_log(tmp_path: pytest.TempPathHint) -> None:
     assert record["model"] == "deepseek-chat"
     assert record["prompt_tokens"] == 10
     assert record["n_messages"] == 1
+
+
+def test_chat_strips_lone_surrogates() -> None:
+    """含 lone surrogate 的输入不应让 payload 序列化崩溃，surrogate 被替换成 U+FFFD。
+
+    复现：用户从终端粘贴含非 UTF-8 字节的文本，Python 以 surrogateescape 解码后产生
+    lone surrogate，OpenAI SDK ``ensure_ascii=False`` 后 ``.encode('utf-8')`` 直接抛
+    UnicodeEncodeError。LLM 入口应统一清洗，挡住所有上游来源。
+    """
+    seen: list[dict[str, Any]] = []
+
+    def create(**kw: Any) -> SimpleNamespace:
+        seen.append(kw)
+        return _resp("ok")
+
+    llm = LLM(Settings(api_key="k"), client=_client(create))
+    bad = "在吗" + chr(0xD83D) + "？"  # 含 lone high surrogate（终端里不可见）
+    llm.chat(
+        [{"role": "user", "content": bad}],
+        extra={"response_format": {"type": "json_object"}},
+    )
+    content = seen[0]["messages"][0]["content"]
+    assert "\ud83d" not in content  # surrogate 已被移除
+    assert content.startswith("在吗")  # 正常中文字符保留
+    content.encode("utf-8")  # 清洗后可被 UTF-8 编码——SDK 不再崩

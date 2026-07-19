@@ -67,6 +67,42 @@ class ChatResponse:
     raw: Any = None
 
 
+def _strip_surrogates(s: str) -> str:
+    """把 lone surrogate（U+D800–U+DFFF）替换成 U+FFFD。
+
+    解决什么
+    --------
+    OpenAI SDK 序列化 payload 时走 ``json.dumps(ensure_ascii=False).encode('utf-8')``，
+    lone surrogate 无法编码，会抛 ``UnicodeEncodeError: surrogates not allowed`` 直接崩。
+    这些码点通常来自 ``surrogateescape`` 解码的非 UTF-8 字节——粘贴的文本、读取的
+    FAQ/订单数据、检索拼接的上下文都可能混入，且在终端里不可见。
+
+    为什么用 U+FFFD 而非 ``encode('utf-8', 'replace')``
+    --------------------------------------------------
+    后者把 surrogate 换成 ASCII ``?``，与真正的问号混淆；U+FFFD 是 Unicode 标准替换符，
+    语义清晰。fast-path 用一次 encode 探测，绝大多数干净字符串零额外开销。
+    """
+    try:
+        s.encode("utf-8")
+        return s
+    except UnicodeEncodeError:
+        return "".join("�" if 0xD800 <= ord(c) <= 0xDFFF else c for c in s)
+
+
+def _sanitize(obj: Any) -> Any:
+    """递归清洗 payload 中的所有 str：移除 lone surrogate。
+
+    只穿透 str / Mapping / list 三类；int / bool / None 等原样返回。
+    """
+    if isinstance(obj, str):
+        return _strip_surrogates(obj)
+    if isinstance(obj, Mapping):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
+
+
 class LLM:
     """带重试 / 超时 / 日志的 LLM 客户端。
 
@@ -111,6 +147,8 @@ class LLM:
             payload["tools"] = tools
         if extra:
             payload.update(extra)
+        # 移除 messages/tools/extra 里可能混入的 lone surrogate，否则 SDK 序列化时会崩
+        payload = _sanitize(payload)
 
         retryable = self._RETRYABLE
         last_err: BaseException | None = None
